@@ -9,13 +9,42 @@ from __future__ import annotations
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.deps import PaginationParams, db_session, valid_hotspot_id
 from app.models.hotspot import Hotspot
 from app.schemas.analytics import HotspotListResponse, HotspotRead, HotspotSummary
+from app.services.hotspot_service import HotspotService
 
 router = APIRouter()
+
+
+class HotspotPipelineResponse(BaseModel):
+    pipeline_run_id: str
+    violations_read: int
+    hotspots_created: int
+    enriched_violations_created: int
+    status: str
+
+
+@router.post(
+    "/run-pipeline",
+    response_model=HotspotPipelineResponse,
+    summary="Generate hotspots and enriched violations",
+)
+def run_hotspot_pipeline(
+    db: Session = Depends(db_session),
+) -> HotspotPipelineResponse:
+    try:
+        result = HotspotService(db).run_pipeline()
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Hotspot pipeline failed: {exc}",
+        ) from exc
+    return HotspotPipelineResponse(**result)
 
 
 @router.get(
