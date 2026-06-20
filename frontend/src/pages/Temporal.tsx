@@ -42,7 +42,8 @@ export default function TemporalPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Risk Intelligence & EIS Explainability"
+        eyebrow="Risk Explainability"
+        title="EIS Explainability"
         description="Verify how the Enforcer Intensity Score (EIS) is calculated for each congestion node."
       />
 

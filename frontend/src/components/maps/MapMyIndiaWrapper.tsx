@@ -44,7 +44,7 @@ export interface MapMyIndiaWrapperProps {
   popups?: MapPopupItem[];
   legendItems?: MapLegendItem[];
   onMarkerClick?: (marker: MapMarkerItem) => void;
-  variant?: "default" | "patrol";
+  variant?: "default" | "patrol" | "dashboard";
 }
 
 export function MapMyIndiaWrapper({
@@ -230,15 +230,19 @@ export function MapMyIndiaWrapper({
         "border border-[var(--color-card-border)] bg-[var(--color-card-bg)] shadow-[0_20px_60px_-40px_rgba(0,0,0,0.65)]",
         variant === "patrol"
           ? "overflow-hidden rounded-[28px]"
-          : "rounded-[32px]"
+          : variant === "dashboard"
+            ? "overflow-hidden rounded-[26px]"
+            : "rounded-[32px]"
       )}
     >
       <div
         className={cn(
           "border-b border-[var(--color-card-border)] p-5",
           variant === "patrol"
-            ? "flex flex-col gap-4 bg-[linear-gradient(120deg,rgba(15,29,41,0.9),rgba(8,17,27,0.7))] sm:flex-row sm:items-center sm:justify-between"
-            : "flex items-center justify-between"
+            ? "flex flex-col gap-3 bg-[linear-gradient(120deg,rgba(15,29,41,0.9),rgba(8,17,27,0.7))] !p-4 sm:flex-row sm:items-center sm:justify-between"
+            : variant === "dashboard"
+              ? "flex flex-col gap-3 bg-[linear-gradient(120deg,rgba(15,29,41,0.94),rgba(8,17,27,0.72))] !p-4 sm:flex-row sm:items-center sm:justify-between"
+              : "flex items-center justify-between"
         )}
       >
         <div className="min-w-0">
@@ -246,7 +250,7 @@ export function MapMyIndiaWrapper({
             <h3
               className={cn(
                 "text-lg font-semibold text-white",
-                variant === "patrol" && "tracking-tight"
+                variant !== "default" && "tracking-tight"
               )}
             >
               {title}
@@ -256,7 +260,7 @@ export function MapMyIndiaWrapper({
             <p
               className={cn(
                 "mt-1 text-sm text-slate-400",
-                variant === "patrol" && "max-w-2xl leading-5"
+                variant !== "default" && "max-w-2xl leading-5"
               )}
             >
               {subtitle}
@@ -270,7 +274,9 @@ export function MapMyIndiaWrapper({
             "flex items-center text-xs font-semibold text-slate-400",
             variant === "patrol"
               ? "w-fit flex-wrap gap-1 rounded-2xl border border-white/[0.07] bg-black/20 p-1.5 shadow-inner shadow-black/20"
-              : "gap-4 rounded-2xl border border-slate-800 bg-slate-900/40 px-3.5 py-2"
+              : variant === "dashboard"
+                ? "w-fit flex-wrap gap-1 rounded-xl border border-white/[0.07] bg-black/20 p-1 text-[10px] shadow-inner shadow-black/20"
+                : "gap-4 rounded-2xl border border-slate-800 bg-slate-900/40 px-3.5 py-2"
           )}
         >
           {legendItems.map((legend) => (
@@ -280,7 +286,9 @@ export function MapMyIndiaWrapper({
                 "flex items-center",
                 variant === "patrol"
                   ? "gap-2 rounded-xl border border-transparent bg-white/[0.035] px-3 py-2 transition hover:border-cyan-300/10 hover:bg-cyan-300/[0.06] hover:text-slate-200"
-                  : "gap-1.5"
+                  : variant === "dashboard"
+                    ? "gap-1.5 rounded-lg px-2 py-1.5"
+                    : "gap-1.5"
               )}
             >
               <span
@@ -288,11 +296,13 @@ export function MapMyIndiaWrapper({
                   "rounded-full",
                   variant === "patrol"
                     ? "h-2.5 w-2.5 border border-white/20 shadow-[0_0_10px_currentColor]"
-                    : "h-2 w-2"
+                    : variant === "dashboard"
+                      ? "h-2 w-2 shadow-[0_0_8px_currentColor]"
+                      : "h-2 w-2"
                 )}
                 style={{
                   backgroundColor: legend.color,
-                  ...(variant === "patrol" ? { color: legend.color } : {}),
+                  ...(variant !== "default" ? { color: legend.color } : {}),
                 }}
               />
               <span>{legend.label}</span>
@@ -305,8 +315,10 @@ export function MapMyIndiaWrapper({
         className={cn(
           "relative overflow-hidden bg-slate-950/80",
           variant === "patrol"
-            ? "min-h-[440px] shadow-[inset_0_0_0_1px_rgba(148,163,184,0.04)]"
-            : "min-h-[420px] rounded-b-[32px]"
+            ? "min-h-[400px] shadow-[inset_0_0_0_1px_rgba(148,163,184,0.04)]"
+            : variant === "dashboard"
+              ? "min-h-[430px] shadow-[inset_0_0_0_1px_rgba(148,163,184,0.04)]"
+              : "min-h-[420px] rounded-b-[32px]"
         )}
       >
         <div

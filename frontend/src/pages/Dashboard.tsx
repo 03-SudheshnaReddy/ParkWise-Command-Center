@@ -1,12 +1,23 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, MapPin, ShieldCheck, Users } from "lucide-react";
+import {
+  AlertTriangle,
+  MapPin,
+  Navigation,
+  ShieldCheck,
+  Users,
+} from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { formatNumber } from "@/lib/utils";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { RiskDonutChart } from "@/components/charts/RiskDonutChart";
 import { MapMyIndiaWrapper } from "@/components/maps/MapMyIndiaWrapper";
+import { PageHeader } from "@/layout/PageHeader";
 import { apiGet } from "@/lib/api";
+import {
+  dashboardMetricDescriptions,
+  getLocationDisplayName,
+} from "@/data/dashboardPresentationData";
 
 // Map Jabalpur coordinates to mock SVG coordinates (0 - 100) for visual representation
 function latLngToXY(lat: number, lng: number) {
@@ -60,6 +71,7 @@ export default function DashboardPage() {
       label: "Violations",
       value: executive_summary.total_violations,
       delta: `+${executive_summary.total_violations_delta}%`,
+      description: dashboardMetricDescriptions.violations,
       icon: AlertTriangle,
       accent: "bg-[#F97316]/10 text-[#F97316]",
     },
@@ -67,6 +79,7 @@ export default function DashboardPage() {
       label: "High Risk Zones",
       value: executive_summary.high_risk_zones,
       delta: `+${executive_summary.high_risk_zones_delta}%`,
+      description: dashboardMetricDescriptions.highRiskZones,
       icon: MapPin,
       accent: "bg-[#38BDF8]/10 text-[#38BDF8]",
     },
@@ -74,13 +87,15 @@ export default function DashboardPage() {
       label: "Officers on Duty",
       value: executive_summary.officers_on_duty,
       delta: "",
+      description: dashboardMetricDescriptions.officersOnDuty,
       icon: Users,
       accent: "bg-[#10B981]/10 text-[#10B981]",
     },
     {
-      label: "Average Risk Score",
+      label: "Avg EIS Score",
       value: executive_summary.avg_risk_score,
       delta: "",
+      description: dashboardMetricDescriptions.averageRiskScore,
       icon: ShieldCheck,
       accent: "bg-[#A855F7]/10 text-[#A855F7]",
     },
@@ -101,7 +116,7 @@ export default function DashboardPage() {
       lng: item.longitude,
       x,
       y,
-      label: item.name,
+      label: getLocationDisplayName(item.name),
       risk: item.risk_category,
       color,
       selected: item.hotspot_id === selectedMarkerId,
@@ -113,7 +128,7 @@ export default function DashboardPage() {
     ? [
         {
           id: `popup-${selectedHotspot.hotspot_id}`,
-          title: selectedHotspot.name,
+          title: getLocationDisplayName(selectedHotspot.name),
           description: `EIS: ${selectedHotspot.latest_eis} • Forecast EIS: ${selectedHotspot.forecasted_eis} • Risk: ${selectedHotspot.risk_category} • Officers: ${selectedHotspot.officers_allocated}`,
           position: latLngToXY(selectedHotspot.latitude, selectedHotspot.longitude),
           latLng: [selectedHotspot.latitude, selectedHotspot.longitude] as [number, number],
@@ -123,15 +138,24 @@ export default function DashboardPage() {
     : [];
 
   return (
-    <div className="space-y-6">
+    <div className="relative space-y-4">
+      <div className="pointer-events-none absolute -left-20 -top-16 -z-10 h-72 w-72 rounded-full bg-cyan-400/[0.035] blur-3xl" />
+
+      <PageHeader
+        eyebrow="Command Overview"
+        title="Dashboard"
+        description="City-wide parking risk, enforcement capacity, and priority-zone status at a glance."
+      />
+
       {/* KPIs Row */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric) => (
           <MetricCard
             key={metric.label}
             label={metric.label}
             value={typeof metric.value === "number" ? formatNumber(metric.value) : metric.value}
             delta={metric.delta}
+            description={metric.description}
             icon={metric.icon}
             accent={metric.accent}
           />
@@ -139,56 +163,87 @@ export default function DashboardPage() {
       </div>
 
       {/* Main Content Layout */}
-      <div className="grid gap-6 xl:grid-cols-[1.8fr_0.9fr]">
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,2.05fr)_minmax(310px,0.95fr)]">
         {/* Map */}
-        <MapMyIndiaWrapper
-          title="Command Center Map - Bengaluru"
-          subtitle="Interactive visual representation of risk zones and patrol areas"
-          markers={markers}
-          popups={popups}
-          legendItems={[
-            { label: "Critical Risk", color: "#EF4444" },
-            { label: "High Risk", color: "#F59E0B" },
-            { label: "Medium Risk", color: "#3B82F6" },
-            { label: "Low Risk", color: "#10B981" },
-          ]}
-          onMarkerClick={(marker) => setSelectedMarkerId(marker.id)}
-        />
+        <div className="dashboard-map-shell rounded-[28px] border border-cyan-300/10 bg-slate-950/50 p-1.5 shadow-[0_35px_90px_-55px_rgba(34,211,238,0.65)]">
+          <MapMyIndiaWrapper
+            title="Bengaluru Command Map"
+            subtitle="Live spatial view of parking risk zones and patrol coverage."
+            markers={markers}
+            popups={popups}
+            legendItems={[
+              { label: "Critical", color: "#EF4444" },
+              { label: "High", color: "#F59E0B" },
+              { label: "Medium", color: "#3B82F6" },
+              { label: "Low", color: "#10B981" },
+            ]}
+            onMarkerClick={(marker) => setSelectedMarkerId(marker.id)}
+            variant="dashboard"
+          />
+        </div>
 
-        {/* Side Panel: Risk Donut & Top Hotspots List */}
-        <div className="space-y-6">
-          <Card className="rounded-[32px] border border-[var(--color-card-border)] bg-[var(--color-card-bg)] p-6">
-            <h3 className="text-md font-semibold text-white mb-4">Risk Distribution</h3>
+        {/* Executive command stack */}
+        <div className="grid gap-3">
+          <Card className="rounded-[22px] border-white/[0.07] bg-[linear-gradient(145deg,rgba(14,27,39,0.92),rgba(8,17,27,0.8))] p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold text-white">
+                  Risk Distribution
+                </h3>
+                <p className="mt-0.5 text-[10px] text-slate-500">
+                  Current city-wide exposure mix
+                </p>
+              </div>
+              <ShieldCheck className="h-4 w-4 text-cyan-300/70" />
+            </div>
             <RiskDonutChart data={risk_distribution} />
           </Card>
 
-          <Card className="rounded-[32px] border border-[var(--color-card-border)] bg-[var(--color-card-bg)] p-6 space-y-4">
-            <h3 className="text-md font-semibold text-white">Active Hotspots</h3>
-            <div className="divide-y divide-slate-800">
-              {hotspot_map.map((hotspot: any) => (
-                <div
+          <Card className="overflow-hidden rounded-[22px] border-white/[0.07] bg-[linear-gradient(145deg,rgba(14,27,39,0.92),rgba(8,17,27,0.8))] p-0">
+            <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
+              <div>
+                <h3 className="text-sm font-semibold text-white">
+                  Top Priority Hotspots
+                </h3>
+                <p className="mt-0.5 text-[10px] text-slate-500">
+                  Priority clusters requiring attention
+                </p>
+              </div>
+              <MapPin className="h-4 w-4 text-rose-300/80" />
+            </div>
+            <div className="max-h-[220px] space-y-1 overflow-y-auto p-2">
+              {hotspot_map.slice(0, 4).map((hotspot: any) => (
+                <button
+                  type="button"
                   key={hotspot.hotspot_id}
                   onClick={() => setSelectedMarkerId(hotspot.hotspot_id)}
-                  className={`py-3 flex items-center justify-between cursor-pointer transition-colors hover:bg-slate-900/40 rounded-xl px-2 ${
-                    hotspot.hotspot_id === selectedMarkerId ? "bg-slate-900/60" : ""
+                  className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-left transition duration-200 hover:border-white/[0.08] hover:bg-white/[0.04] ${
+                    hotspot.hotspot_id === selectedMarkerId
+                      ? "border-cyan-300/12 bg-cyan-300/[0.06]"
+                      : "border-transparent"
                   }`}
                 >
-                  <div>
-                    <p className="text-sm font-medium text-slate-200">{hotspot.name}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">{hotspot.hotspot_type}</p>
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-semibold text-slate-200">
+                      {getLocationDisplayName(hotspot.name)}
+                    </p>
+                    <p className="mt-0.5 flex items-center gap-1 text-[10px] text-slate-500">
+                      <Navigation className="h-2.5 w-2.5" />
+                      {hotspot.hotspot_type}
+                    </p>
                   </div>
                   <span
-                    className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${
+                    className={`shrink-0 rounded-full border px-2 py-1 text-[9px] font-bold uppercase tracking-wider ${
                       hotspot.risk_category === "Critical"
-                        ? "border-red-900 bg-red-950/40 text-red-300"
+                        ? "border-rose-400/20 bg-rose-400/[0.09] text-rose-200"
                         : hotspot.risk_category === "High"
-                          ? "border-amber-900 bg-amber-950/40 text-amber-300"
-                          : "border-blue-900 bg-blue-950/40 text-blue-300"
+                          ? "border-amber-300/20 bg-amber-300/[0.08] text-amber-200"
+                          : "border-sky-300/20 bg-sky-300/[0.08] text-sky-200"
                     }`}
                   >
                     {hotspot.risk_category}
                   </span>
-                </div>
+                </button>
               ))}
             </div>
           </Card>

@@ -4,6 +4,7 @@ import { AlertTriangle, Shield, CheckCircle } from "lucide-react";
 import { PageHeader } from "@/layout/PageHeader";
 import { Card } from "@/components/ui/card";
 import { apiGet, apiPost } from "@/lib/api";
+import { getLocationDisplayName } from "@/data/dashboardPresentationData";
 
 export default function OfficersPage() {
   const [totalOfficersInput, setTotalOfficersInput] = useState(20);
@@ -59,6 +60,7 @@ export default function OfficersPage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        eyebrow="Field Allocation"
         title="Officer Allocation"
         description="Deploy field units proportionally based on current and forecasted intersection risk levels."
       />
@@ -154,7 +156,9 @@ export default function OfficersPage() {
                     <td className="py-4 px-4 text-center font-mono font-bold text-slate-400">
                       Rank {alloc.priority}
                     </td>
-                    <td className="py-4 px-4 font-medium text-slate-200">{alloc.hotspot_name}</td>
+                    <td className="py-4 px-4 font-medium text-slate-200">
+                      {getLocationDisplayName(alloc.hotspot_name)}
+                    </td>
                     <td className="py-4 px-4 text-center">
                       <span
                         className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${

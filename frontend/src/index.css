@@ -133,6 +133,41 @@ body {
   color: #ecfeff !important;
 }
 
+.dashboard-map-shell .leaflet-top.leaflet-right {
+  margin-top: 10px;
+  margin-right: 10px;
+}
+
+.dashboard-map-shell .leaflet-control-zoom {
+  overflow: hidden;
+  border: 1px solid rgba(103, 232, 249, 0.16) !important;
+  border-radius: 12px !important;
+  background: rgba(7, 15, 24, 0.88) !important;
+  box-shadow: 0 14px 34px -22px rgba(34, 211, 238, 0.8) !important;
+  backdrop-filter: blur(12px);
+}
+
+.dashboard-map-shell .leaflet-control-zoom a {
+  width: 32px !important;
+  height: 32px !important;
+  line-height: 30px !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1) !important;
+  background: rgba(15, 29, 41, 0.9) !important;
+  color: #a5f3fc !important;
+  font-size: 17px !important;
+}
+
+.dashboard-map-shell .leaflet-control-zoom a:last-child {
+  border-bottom: 0 !important;
+}
+
+.dashboard-map-shell .leaflet-control-zoom a:hover,
+.dashboard-map-shell .leaflet-control-zoom a:focus {
+  background: rgba(34, 211, 238, 0.13) !important;
+  color: #ecfeff !important;
+}
+
 @keyframes map-pulse {
   0% {
     transform: translate(-50%, -50%) scale(0.6);

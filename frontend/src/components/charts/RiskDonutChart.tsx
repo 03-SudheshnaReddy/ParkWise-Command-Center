@@ -12,7 +12,7 @@ interface RiskDonutChartProps {
 
 export function RiskDonutChart({ data }: RiskDonutChartProps) {
   return (
-    <div className="mt-6 h-[320px] w-full">
+    <div className="h-[250px] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Tooltip
@@ -28,10 +28,11 @@ export function RiskDonutChart({ data }: RiskDonutChartProps) {
             data={data}
             dataKey="value"
             nameKey="name"
-            innerRadius={72}
-            outerRadius={110}
+            cx="42%"
+            innerRadius={58}
+            outerRadius={88}
             stroke="transparent"
-            paddingAngle={4}
+            paddingAngle={3}
           >
             {data.map((entry) => (
               <Cell key={entry.name} fill={entry.color} />
@@ -42,7 +43,8 @@ export function RiskDonutChart({ data }: RiskDonutChartProps) {
             verticalAlign="middle"
             align="right"
             iconType="circle"
-            wrapperStyle={{ color: "#94a3b8", fontSize: 12 }}
+            iconSize={9}
+            wrapperStyle={{ color: "#94a3b8", fontSize: 11, lineHeight: "24px" }}
           />
         </PieChart>
       </ResponsiveContainer>

@@ -5,6 +5,7 @@ import { PageHeader } from "@/layout/PageHeader";
 import { Card } from "@/components/ui/card";
 import { MapMyIndiaWrapper } from "@/components/maps/MapMyIndiaWrapper";
 import { apiGet } from "@/lib/api";
+import { getLocationDisplayName } from "@/data/dashboardPresentationData";
 
 function latLngToXY(lat: number, lng: number) {
   const minLat = 23.14;
@@ -78,7 +79,7 @@ export default function HotspotsPage() {
       lng: item.centroid_lon,
       x,
       y,
-      label: item.hotspot_name,
+      label: getLocationDisplayName(item.hotspot_name),
       risk,
       color,
       selected: item.hotspot_name === selectedHotspotName,
@@ -92,7 +93,7 @@ export default function HotspotsPage() {
     ? [
         {
           id: `popup-${selectedHotspot.hotspot_name}`,
-          title: selectedHotspot.hotspot_name,
+          title: getLocationDisplayName(selectedHotspot.hotspot_name),
           description: `Total Violations: ${selectedHotspot.total_violations} | Dominant: ${selectedHotspot.dominant_violation_type} (${selectedHotspot.dominant_vehicle_category})`,
           position: latLngToXY(
             selectedHotspot.centroid_lat,
@@ -107,18 +108,22 @@ export default function HotspotsPage() {
   const totalPages = Math.max(1, Math.ceil(total / page_size));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
+        eyebrow="Spatial Intelligence"
         title="Hotspot Intelligence"
-        description="Bengaluru parking violation density, priority zones, and hotspot records."
+        description="Filter, inspect, and compare detected parking-congestion clusters across Bengaluru."
       />
 
-      <div className="grid gap-6 xl:grid-cols-[280px_1fr]">
+      <div className="grid gap-4 xl:grid-cols-[260px_1fr]">
         {/* Filters Sidebar */}
-        <Card className="rounded-[28px] border border-slate-800 bg-slate-950/60 p-5 space-y-6 h-fit">
-          <h3 className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">
-            Filters
-          </h3>
+        <Card className="h-fit space-y-5 rounded-[22px] border-white/[0.07] bg-[linear-gradient(145deg,rgba(14,27,39,0.92),rgba(8,17,27,0.8))] p-4">
+          <div>
+            <p className="text-[9px] font-semibold uppercase tracking-[0.24em] text-cyan-300/70">
+              Investigation Controls
+            </p>
+            <h3 className="mt-1 text-sm font-semibold text-white">Filter hotspots</h3>
+          </div>
 
           <div className="space-y-2">
             <label className="text-xs font-semibold text-slate-400">Search Area</label>
@@ -129,7 +134,7 @@ export default function HotspotsPage() {
                 placeholder="Search hotspot..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 py-2.5 pl-9 pr-4 text-sm text-white placeholder-slate-500 focus:border-cyan-500 outline-none"
+                className="w-full rounded-xl border border-white/[0.08] bg-black/20 py-2.5 pl-9 pr-4 text-sm text-white outline-none placeholder:text-slate-600 focus:border-cyan-300/35 focus:ring-2 focus:ring-cyan-300/5"
               />
             </div>
           </div>
@@ -154,23 +159,30 @@ export default function HotspotsPage() {
         </Card>
 
         {/* Map View */}
-        <MapMyIndiaWrapper
-          title="Spatial Hotspot Cluster Distribution"
-          subtitle="Click pins or table records to inspect individual congestion centroids"
-          markers={markers}
-          popups={popups}
-          legendItems={[
-            { label: "Critical (>=650)", color: "#EF4444" },
-            { label: "High (450-649)", color: "#F59E0B" },
-            { label: "Medium (<450)", color: "#3B82F6" },
-          ]}
-          onMarkerClick={(marker) => setSelectedHotspotName(marker.id)}
-        />
+        <div className="rounded-[28px] border border-cyan-300/10 bg-slate-950/50 p-1.5 shadow-[0_35px_90px_-55px_rgba(34,211,238,0.55)]">
+          <MapMyIndiaWrapper
+            title="Spatial Hotspot Cluster Distribution"
+            subtitle="Select a map pin or database record to inspect its congestion centroid."
+            markers={markers}
+            popups={popups}
+            legendItems={[
+              { label: "Critical (>=650)", color: "#EF4444" },
+              { label: "High (450-649)", color: "#F59E0B" },
+              { label: "Medium (<450)", color: "#3B82F6" },
+            ]}
+            onMarkerClick={(marker) => setSelectedHotspotName(marker.id)}
+          />
+        </div>
       </div>
 
       {/* Simplified Hotspots Table */}
-      <Card className="rounded-[32px] border border-slate-800 bg-slate-950/45 p-6 overflow-hidden">
-        <h3 className="text-md font-semibold text-white mb-4">Hotspot Analysis Database</h3>
+      <Card className="overflow-hidden rounded-[24px] border-white/[0.07] bg-[linear-gradient(145deg,rgba(14,27,39,0.92),rgba(8,17,27,0.8))] p-0">
+        <div className="border-b border-white/[0.06] px-5 py-4">
+          <h3 className="text-sm font-semibold text-white">Hotspot Records</h3>
+          <p className="mt-0.5 text-[10px] text-slate-500">
+            Detailed spatial and violation attributes for detected clusters
+          </p>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -203,7 +215,7 @@ export default function HotspotsPage() {
                     }`}
                   >
                     <td className="py-3.5 px-4 font-medium text-slate-200">
-                      {item.hotspot_name}
+                      {getLocationDisplayName(item.hotspot_name)}
                     </td>
                     <td className="py-3.5 px-4 text-right font-mono text-cyan-300 font-semibold">
                       {item.total_violations}
@@ -229,7 +241,7 @@ export default function HotspotsPage() {
         </div>
 
         {/* Pagination Controls */}
-        <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-800">
+        <div className="flex items-center justify-between border-t border-white/[0.06] px-5 py-3.5">
           <p className="text-xs text-slate-500">
             Showing Page <span className="font-semibold text-slate-300">{page}</span> of{" "}
             <span className="font-semibold text-slate-300">{totalPages}</span> (

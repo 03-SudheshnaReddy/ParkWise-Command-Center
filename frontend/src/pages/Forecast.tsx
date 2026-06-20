@@ -4,6 +4,7 @@ import { AlertTriangle, Cpu, CheckCircle } from "lucide-react";
 import { PageHeader } from "@/layout/PageHeader";
 import { Card } from "@/components/ui/card";
 import { apiGet, apiPost } from "@/lib/api";
+import { getLocationDisplayName } from "@/data/dashboardPresentationData";
 
 export default function ForecastPage() {
   const [recomputed, setRecomputed] = useState(false);
@@ -36,7 +37,7 @@ export default function ForecastPage() {
       <div className="flex h-96 items-center justify-center text-slate-400">
         <div className="flex flex-col items-center gap-3">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-700 border-t-cyan-400" />
-          <p className="text-sm font-semibold">Running AI prediction engine...</p>
+          <p className="text-sm font-semibold">Preparing forecast projections...</p>
         </div>
       </div>
     );
@@ -58,8 +59,9 @@ export default function ForecastPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <PageHeader
-          title="AI Forecasting"
-          description="Predict traffic violation volumes and congestion risk trends using deep learning telemetry."
+          eyebrow="Forecasting"
+          title="Forecast"
+          description="Review predicted violation volumes and future congestion-risk trends."
         />
         <button
           onClick={() => recomputeMutation.mutate()}
@@ -73,7 +75,7 @@ export default function ForecastPage() {
           ) : (
             <Cpu size={16} />
           )}
-          <span>{recomputed ? "Forecast Updated!" : "Recompute AI Forecast"}</span>
+          <span>{recomputed ? "Forecast Updated!" : "Recompute Forecast"}</span>
         </button>
       </div>
 
@@ -104,13 +106,15 @@ export default function ForecastPage() {
                 <th className="py-3 px-4 text-center">Current EIS</th>
                 <th className="py-3 px-4 text-center">Forecasted EIS</th>
                 <th className="py-3 px-4 text-center">Predicted Risk</th>
-                <th className="py-3 px-4">AI Recommended Action</th>
+                <th className="py-3 px-4">Recommended Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 text-sm text-slate-300">
               {topPredictions.map((pred: any) => (
                 <tr key={pred.hotspot_id} className="hover:bg-slate-900/25 transition-colors">
-                  <td className="py-4 px-4 font-medium text-slate-200">{pred.name}</td>
+                  <td className="py-4 px-4 font-medium text-slate-200">
+                    {getLocationDisplayName(pred.name)}
+                  </td>
                   <td className="py-4 px-4 text-center font-mono text-slate-400">{pred.current_eis.toFixed(1)}</td>
                   <td className="py-4 px-4 text-center font-mono text-cyan-300 font-bold">{pred.forecasted_eis.toFixed(1)}</td>
                   <td className="py-4 px-4 text-center">

@@ -1,36 +1,24 @@
 import { Outlet, useLocation } from "react-router-dom";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Sidebar } from "./Sidebar";
-import { Topbar } from "./Topbar";
-import { useAppStore } from "@/stores/appStore";
 import { cn } from "@/lib/utils";
+import { HorizontalNavbar } from "./HorizontalNavbar";
 
 export function AppShell() {
-  const { sidebarCollapsed } = useAppStore();
   const location = useLocation();
   const isLanding = location.pathname === "/landing";
 
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-[var(--color-page-bg)]">
-        {!isLanding && <Sidebar />}
-        {!isLanding && <Topbar />}
+        <HorizontalNavbar />
 
-        <main
-          className={cn(
-            "flex flex-col transition-all duration-300",
-            "min-h-screen"
-          )}
-          style={{
-            paddingLeft: isLanding
-              ? 0
-              : sidebarCollapsed
-                ? "var(--sidebar-collapsed-width)"
-                : "var(--sidebar-width)",
-            paddingTop: isLanding ? 0 : "var(--topbar-height)",
-          }}
-        >
-          <div className={cn("flex-1", !isLanding && "p-6")}>
+        <main className="flex min-h-screen flex-col pt-[72px]">
+          <div
+            className={cn(
+              "flex-1",
+              !isLanding && "mx-auto w-full max-w-[1800px] p-4 lg:p-5"
+            )}
+          >
             <Outlet />
           </div>
         </main>
