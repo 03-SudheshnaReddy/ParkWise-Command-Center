@@ -340,3 +340,27 @@ class TestAllocationToStop:
             assert stops[0]["hotspot_id"] == 10
             assert stops[0]["officers_allocated"] == 3
             assert stops[0]["risk_category"] == "Critical"
+
+    def test_duplicate_hotspot_allocations_are_deduplicated(self, mock_db):
+        with patch("app.services.routing_service.RoutingRepository") as MockRepo:
+            mock_repo = MagicMock()
+            MockRepo.return_value = mock_repo
+
+            hotspot = FakeHotspot(10, "Test Hotspot")
+            mock_repo.get_latest_allocations.return_value = [
+                (FakeAllocation(1, 10, officers=3, priority=1), hotspot),
+                (FakeAllocation(2, 10, officers=3, priority=1), hotspot),
+            ]
+
+            created_route = MagicMock()
+            created_route.id = 1
+            mock_repo.create_patrol_route.return_value = created_route
+
+            result = RoutingService(mock_db).generate_route(
+                route_date=date(2026, 6, 18),
+                shift_name="default",
+            )
+
+            assert result["total_stops"] == 1
+            assert len(result["stops"]) == 1
+            assert result["stops"][0]["hotspot_id"] == 10

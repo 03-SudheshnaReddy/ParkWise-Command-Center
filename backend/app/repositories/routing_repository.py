@@ -45,17 +45,24 @@ class RoutingRepository:
         Returns:
             List of (Allocation, Hotspot) tuples.
         """
+        latest_allocation_query = self.db.query(
+            func.max(Allocation.allocation_date)
+        )
+        if allocation_date is not None:
+            latest_allocation_query = latest_allocation_query.filter(
+                func.date(Allocation.allocation_date) == allocation_date.date()
+            )
+        latest_allocation_date = latest_allocation_query.scalar_subquery()
+
         query = (
             self.db.query(Allocation, Hotspot)
             .join(Hotspot, Allocation.hotspot_id == Hotspot.id)
-            .filter(Allocation.officers_allocated > 0)
+            .filter(
+                Allocation.officers_allocated > 0,
+                Allocation.allocation_date == latest_allocation_date,
+            )
             .order_by(Allocation.priority_rank.asc(), Allocation.officers_allocated.desc())
         )
-
-        if allocation_date is not None:
-            query = query.filter(
-                func.date(Allocation.allocation_date) == allocation_date.date()
-            )
 
         if limit is not None:
             query = query.limit(limit)

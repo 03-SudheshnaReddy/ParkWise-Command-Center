@@ -237,7 +237,11 @@ class RoutingService:
             List of RouteStop instances.
         """
         stops = []
+        seen_hotspot_ids = set()
         for allocation, hotspot in allocation_rows:
+            if hotspot.id in seen_hotspot_ids:
+                continue
+            seen_hotspot_ids.add(hotspot.id)
             stop = RouteStop(
                 hotspot_id=hotspot.id,
                 latitude=hotspot.centroid_lat,

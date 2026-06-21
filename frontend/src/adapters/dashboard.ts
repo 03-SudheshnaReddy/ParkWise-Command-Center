@@ -6,19 +6,13 @@ import {
   applyPercentileRiskTiers,
   type DisplayRiskTier,
 } from "@/utils/hotspotDisplay";
+import { getRiskHexColor } from "@/utils/riskDisplay";
 import type {
   DashboardHotspotMarker,
   DashboardMetric,
   DashboardView,
   RiskChartSegment,
 } from "@/types/views";
-
-const RISK_COLORS: Record<string, string> = {
-  Critical: "#EF4444",
-  High: "#F59E0B",
-  Medium: "#3B82F6",
-  Low: "#10B981",
-};
 
 export function adaptRiskDistribution(
   hotspots: DashboardHotspotMarker[]
@@ -36,7 +30,7 @@ export function adaptRiskDistribution(
   return (["Critical", "High", "Medium", "Low"] as const).map((name) => ({
     name,
     value: distribution[name],
-    color: RISK_COLORS[name],
+    color: getRiskHexColor(name),
   }));
 }
 

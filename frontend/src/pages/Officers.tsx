@@ -14,6 +14,7 @@ import {
   computeAllocation,
   fetchLatestAllocation,
 } from "@/services/officers";
+import { getRiskColorClass } from "@/utils/riskDisplay";
 
 function getErrorMessage(error: unknown): string {
   if (error && typeof error === "object" && "message" in error) {
@@ -301,13 +302,9 @@ export default function OfficersPage() {
                     </td>
                     <td className="px-4 py-3.5 text-center">
                       <span
-                        className={`rounded-full border px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.1em] ${
-                          alloc.displayRiskTier === "Critical"
-                            ? "border-rose-400/20 bg-rose-400/10 text-rose-200"
-                            : alloc.displayRiskTier === "High"
-                              ? "border-amber-400/20 bg-amber-400/10 text-amber-200"
-                              : "border-blue-400/20 bg-blue-400/10 text-blue-200"
-                        }`}
+                        className={`rounded-full border px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.1em] ${getRiskColorClass(
+                          alloc.displayRiskTier
+                        )}`}
                       >
                         {alloc.displayRiskTier}
                       </span>

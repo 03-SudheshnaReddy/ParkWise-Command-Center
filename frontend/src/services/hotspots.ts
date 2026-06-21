@@ -41,6 +41,28 @@ export async function fetchHotspots(
   );
 }
 
+export async function fetchAllHotspots(): Promise<HotspotListResponse> {
+  const firstPage = await fetchHotspots({ page: 1, page_size: 500 });
+  const totalPages = Math.ceil(firstPage.total / firstPage.page_size);
+  if (totalPages <= 1) return firstPage;
+
+  const remainingPages = await Promise.all(
+    Array.from({ length: totalPages - 1 }, (_, index) =>
+      fetchHotspots({ page: index + 2, page_size: firstPage.page_size })
+    )
+  );
+
+  return {
+    ...firstPage,
+    page: 1,
+    page_size: firstPage.total,
+    items: [
+      ...firstPage.items,
+      ...remainingPages.flatMap((response) => response.items),
+    ],
+  };
+}
+
 export async function fetchZoneById(zoneId: string): Promise<HotspotRecord> {
   return apiGetLive<HotspotRecord>(`/hotspots/${zoneId}`);
 }

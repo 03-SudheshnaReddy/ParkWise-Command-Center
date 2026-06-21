@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   BrainCircuit,
@@ -21,6 +21,10 @@ import {
   generatePatrolRoute,
 } from "@/services/patrol";
 import { patrolRouteInsight } from "@/data/patrolPresentationData";
+import {
+  getRiskColorClass,
+  getRiskHexColor,
+} from "@/utils/riskDisplay";
 
 function latLngToXY(lat: number, lng: number) {
   const minLat = 12.80;
@@ -44,9 +48,10 @@ function mapRiskLevel(
 
 export default function PatrolPage() {
   const [routed, setRouted] = useState(false);
+  const queryClient = useQueryClient();
 
   // Fetch latest routing / patrol details
-  const { data, isLoading, error, refetch } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["routing-latest"],
     queryFn: fetchLatestPatrolRoute,
     refetchInterval: 10000,
@@ -55,9 +60,10 @@ export default function PatrolPage() {
   // Recompute route geometry mutation
   const generateRouteMutation = useMutation({
     mutationFn: generatePatrolRoute,
-    onSuccess: () => {
+    onSuccess: (updatedRoute) => {
+      queryClient.setQueryData(["routing-latest"], updatedRoute);
       setRouted(true);
-      refetch();
+      void queryClient.invalidateQueries({ queryKey: ["routing-latest"] });
       setTimeout(() => setRouted(false), 3000);
     },
   });
@@ -98,26 +104,19 @@ export default function PatrolPage() {
   // Convert geometry coordinates for visualization
   const points = route_geometry.map((pt) => latLngToXY(pt.lat, pt.lng));
 
-  const polylines = [
+  const polylines = points.length >= 2 ? [
     {
       id: "route-poly",
       points,
       route_geometry,
       color: "#60a5fa",
     },
-  ];
+  ] : [];
 
   // Plot stops as markers
   const markers = stop_sequence.map((stop) => {
     const { x, y } = latLngToXY(stop.lat, stop.lng);
-    const color =
-      stop.displayRiskTier === "Critical"
-        ? "#EF4444"
-        : stop.displayRiskTier === "High"
-          ? "#F59E0B"
-          : stop.displayRiskTier === "Medium"
-            ? "#3B82F6"
-            : "#10B981";
+    const color = getRiskHexColor(stop.displayRiskTier);
 
     return {
       id: `stop-${stop.sequence}`,
@@ -153,11 +152,23 @@ export default function PatrolPage() {
               <RefreshCw className="h-[18px] w-[18px] transition-transform duration-500 group-hover:rotate-90" />
             )}
             <span>
-              {routed ? "Patrols Recalculated!" : "Recalculate Route Geometry"}
+              {generateRouteMutation.isPending
+                ? "Recalculating..."
+                : routed
+                  ? "Route Updated"
+                  : "Recalculate Route Geometry"}
             </span>
           </button>
         }
       />
+
+      {generateRouteMutation.isError && (
+        <div className="rounded-2xl border border-red-400/15 bg-red-500/[0.07] px-4 py-3 text-sm text-red-200">
+          {generateRouteMutation.error instanceof Error
+            ? generateRouteMutation.error.message
+            : "Route recalculation failed. Please try again."}
+        </div>
+      )}
 
       {/* Patrol KPIs */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -206,7 +217,7 @@ export default function PatrolPage() {
             </span>
           </div>
           <p className="mt-2 font-mono text-2xl font-bold tracking-tight text-white">
-            {total_distance_km}
+            {total_distance_km.toFixed(2)}
             <span className="ml-2 text-base font-semibold text-slate-500">km</span>
           </p>
           <p className="mt-0.5 text-[10px] text-slate-500">
@@ -273,7 +284,7 @@ export default function PatrolPage() {
               <div className="relative space-y-2 before:absolute before:bottom-5 before:left-[18px] before:top-5 before:w-px before:bg-gradient-to-b before:from-cyan-300/35 before:via-slate-700/50 before:to-transparent">
                 {stop_sequence.map((stop) => (
                   <div
-                    key={stop.sequence}
+                    key={`${stop.hotspot_id}-${stop.sequence}`}
                     className="group relative grid grid-cols-[38px_1fr] gap-2.5 rounded-2xl border border-transparent p-2 transition duration-300 hover:-translate-y-0.5 hover:border-white/[0.07] hover:bg-white/[0.035]"
                   >
                     <span className="relative z-10 flex h-9 w-9 items-center justify-center rounded-xl border border-cyan-300/15 bg-[#0b1823] font-mono text-[11px] font-bold text-cyan-300 shadow-[0_0_20px_-10px_rgba(103,232,249,0.8)]">
@@ -286,13 +297,9 @@ export default function PatrolPage() {
                           {stop.displayName}
                         </h4>
                         <span
-                          className={`shrink-0 rounded-full border px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.12em] shadow-sm ${
-                            stop.displayRiskTier === "Critical"
-                              ? "border-rose-400/20 bg-rose-400/[0.1] text-rose-200 shadow-rose-500/10"
-                              : stop.displayRiskTier === "High"
-                                ? "border-amber-300/20 bg-amber-300/[0.09] text-amber-200 shadow-amber-500/10"
-                                : "border-sky-300/20 bg-sky-300/[0.08] text-sky-200 shadow-sky-500/10"
-                          }`}
+                          className={`shrink-0 rounded-full border px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.12em] shadow-sm ${getRiskColorClass(
+                            stop.displayRiskTier
+                          )}`}
                         >
                           {stop.displayRiskTier}
                         </span>

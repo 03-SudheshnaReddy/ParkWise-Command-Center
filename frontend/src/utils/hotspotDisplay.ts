@@ -1,4 +1,11 @@
-export type DisplayRiskTier = "Critical" | "High" | "Medium" | "Low";
+import {
+  applyPercentileRiskTiers as applyRiskTiers,
+  getRiskMetric,
+  type DisplayRiskTier,
+  type RiskMappedRecord,
+} from "@/utils/riskDisplay";
+
+export type { DisplayRiskTier } from "@/utils/riskDisplay";
 
 export interface HotspotDisplaySource {
   id?: number | string | null;
@@ -110,56 +117,18 @@ export function getHotspotSubtext(
 }
 
 export function getHotspotRiskScore(hotspot: HotspotDisplaySource): number {
-  const candidates = [
-    hotspot.forecasted_eis,
-    hotspot.forecast_score,
-    hotspot.predicted_risk_score,
-    hotspot.latest_eis,
-    hotspot.eis_score,
-    hotspot.risk_score,
-    hotspot.total_violations,
-    hotspot.violation_count,
-  ];
-  const score = candidates.find((value) => Number.isFinite(value));
-  return score == null ? 0 : Number(score);
+  return getRiskMetric(hotspot);
 }
 
 export function applyPercentileRiskTiers<T extends HotspotDisplaySource>(
   hotspots: T[]
 ): Array<DisplayMappedHotspot<T>> {
-  const ranked = hotspots
-    .map((hotspot) => ({
-      hotspot,
-      score: getHotspotRiskScore(hotspot),
-    }))
-    .sort(
-      (a, b) =>
-        b.score - a.score ||
-        String(hotspotId(a.hotspot)).localeCompare(String(hotspotId(b.hotspot)))
-    );
-
-  const criticalLimit = Math.ceil(ranked.length * 0.01);
-  const highLimit = Math.ceil(ranked.length * 0.04);
-  const mediumLimit = Math.ceil(ranked.length * 0.1);
-
-  return ranked.map(({ hotspot, score }, index) => {
-    const rank = index + 1;
-    const displayRiskTier: DisplayRiskTier =
-      rank <= criticalLimit
-        ? "Critical"
-        : rank <= highLimit
-          ? "High"
-          : rank <= mediumLimit
-            ? "Medium"
-            : "Low";
-
+  return applyRiskTiers(hotspots).map(
+    (hotspot: RiskMappedRecord<T>) => {
     return {
       ...hotspot,
       displayName: getHotspotDisplayName(hotspot),
       displaySubtext: getHotspotSubtext(hotspot),
-      displayRiskTier,
-      displayRiskScore: score,
-      displayRiskRank: rank,
     };
   });
 }

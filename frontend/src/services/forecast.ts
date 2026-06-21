@@ -28,14 +28,8 @@ export async function getTopForecasts(): Promise<ForecastPredictionRow[]> {
   ]);
 
   const eisScores = adaptEisScoreList(eisResponse, riskUniverse);
-  const { eisByHotspot, hotspotNames, tierByHotspot } =
-    buildEisLookup(eisScores);
-  return adaptForecastTop(
-    forecasts,
-    eisByHotspot,
-    hotspotNames,
-    tierByHotspot
-  );
+  const eisByHotspot = buildEisLookup(eisScores);
+  return adaptForecastTop(forecasts, eisByHotspot, riskUniverse);
 }
 
 export async function trainForecast(): Promise<BackendForecastTrainResponse> {

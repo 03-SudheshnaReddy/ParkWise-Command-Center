@@ -16,6 +16,7 @@ import {
   useTopForecasts,
 } from "@/hooks/useForecast";
 import { generateForecast, trainForecast } from "@/services/forecast";
+import { getRiskColorClass } from "@/utils/riskDisplay";
 
 type ForecastOperationPhase =
   | "idle"
@@ -30,6 +31,12 @@ function getErrorMessage(error: unknown): string {
   }
   if (error instanceof Error && error.message.trim()) return error.message;
   return "Forecast processing failed. Please try again.";
+}
+
+function formatRiskScore(value: number | null): string {
+  if (value == null) return "—";
+  if (value > 0 && value < 0.05) return "<0.1";
+  return value.toFixed(1);
 }
 
 export default function ForecastPage() {
@@ -177,7 +184,11 @@ export default function ForecastPage() {
           },
           {
             label: "High-Risk Clusters",
-            value: summary?.predictedHighRiskHotspots ?? "—",
+            value: topPredictions.filter(
+              (prediction) =>
+                prediction.displayRiskTier === "Critical" ||
+                prediction.displayRiskTier === "High"
+            ).length,
             icon: ShieldAlert,
             tone: "text-amber-200",
           },
@@ -265,14 +276,20 @@ export default function ForecastPage() {
                         </span>
                         {pred.displaySubtext ? (
                           <span className="mt-0.5 block font-mono text-[9px] text-slate-600">
-                            {pred.displaySubtext}
+                            {pred.dominantViolation
+                              ? `${pred.dominantViolation} · ${pred.displaySubtext}`
+                              : pred.displaySubtext}
+                          </span>
+                        ) : pred.dominantViolation ? (
+                          <span className="mt-0.5 block text-[9px] text-slate-600">
+                            {pred.dominantViolation}
                           </span>
                         ) : null}
                       </span>
                     </div>
                   </td>
                   <td className="px-4 py-3.5 text-center font-mono text-xs text-slate-400">
-                    {pred.current_eis?.toFixed(1) ?? "—"}
+                    {formatRiskScore(pred.current_eis)}
                   </td>
                   <td className="px-4 py-3.5 text-center">
                     <span className="inline-flex min-w-14 justify-center rounded-lg border border-cyan-300/15 bg-cyan-300/[0.07] px-2 py-1 font-mono text-sm font-bold text-cyan-200">
@@ -281,13 +298,9 @@ export default function ForecastPage() {
                   </td>
                   <td className="px-4 py-3.5 text-center">
                     <span
-                      className={`rounded-full border px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.1em] ${
-                        pred.displayRiskTier === "Critical"
-                          ? "border-rose-400/20 bg-rose-400/10 text-rose-200"
-                          : pred.displayRiskTier === "High"
-                            ? "border-amber-400/20 bg-amber-400/10 text-amber-200"
-                            : "border-blue-400/20 bg-blue-400/10 text-blue-200"
-                      }`}
+                      className={`rounded-full border px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.1em] ${getRiskColorClass(
+                        pred.displayRiskTier
+                      )}`}
                     >
                       {pred.displayRiskTier}
                     </span>

@@ -1,5 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchHotspots, fetchZoneById, type HotspotsParams } from "@/services/hotspots";
+import {
+  fetchAllHotspots,
+  fetchHotspots,
+  fetchZoneById,
+  type HotspotsParams,
+} from "@/services/hotspots";
 import { fetchHotspotDisplayUniverse } from "@/services/hotspotDisplay";
 
 export function useHotspots(params?: HotspotsParams) {
@@ -15,6 +20,15 @@ export function useZone(zoneId: string) {
     queryKey: ["zone", zoneId],
     queryFn: () => fetchZoneById(zoneId),
     enabled: !!zoneId,
+  });
+}
+
+export function useAllHotspots() {
+  return useQuery({
+    queryKey: ["hotspots-all"],
+    queryFn: fetchAllHotspots,
+    staleTime: 60_000,
+    refetchInterval: 60_000,
   });
 }
 

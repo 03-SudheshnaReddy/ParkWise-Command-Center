@@ -54,6 +54,9 @@ export interface ForecastPredictionRow {
   displayName: string;
   displaySubtext: string | null;
   displayRiskTier: DisplayRiskTier;
+  displayRiskRank: number;
+  totalViolations: number;
+  dominantViolation: string | null;
   action_recommended: string;
 }
 

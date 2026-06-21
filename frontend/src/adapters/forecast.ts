@@ -1,10 +1,21 @@
-import type { BackendForecastItem, BackendForecastSummary } from "@/types/backend";
-import type { ForecastPredictionRow, ForecastSummaryView } from "@/types/views";
-import type { EISScoreView } from "@/types/views";
+import type { HotspotDisplayUniverseItem } from "@/services/hotspotDisplay";
+import type {
+  BackendForecastItem,
+  BackendForecastSummary,
+} from "@/types/backend";
+import type {
+  EISScoreView,
+  ForecastPredictionRow,
+  ForecastSummaryView,
+} from "@/types/views";
 import {
   getHotspotDisplayName,
-  type DisplayRiskTier,
+  getHotspotSubtext,
 } from "@/utils/hotspotDisplay";
+import {
+  applyPercentileRiskTiers,
+  type DisplayRiskTier,
+} from "@/utils/riskDisplay";
 
 export function adaptForecastSummary(
   summary: BackendForecastSummary
@@ -29,62 +40,184 @@ export function adaptForecastSummary(
   };
 }
 
-function deriveAction(item: BackendForecastItem): string {
-  const features = item.top_features;
-  if (features && typeof features === "object" && !Array.isArray(features)) {
-    const topKey = Object.keys(features as Record<string, unknown>)[0];
-    if (topKey) {
-      return `Monitor ${topKey.replace(/_/g, " ")} — predicted ${item.predicted_risk_category} risk`;
-    }
+function firstFinite(
+  ...values: Array<number | null | undefined>
+): number | null {
+  const value = values.find((candidate) => Number.isFinite(candidate));
+  return value == null ? null : Number(value);
+}
+
+function firstText(
+  ...values: Array<string | null | undefined>
+): string | null {
+  return values.find((value) => value?.trim())?.trim() ?? null;
+}
+
+function getCurrentRiskScore(
+  item: BackendForecastItem,
+  hotspot: HotspotDisplayUniverseItem | undefined,
+  eisScore: number | undefined
+): number | null {
+  return firstFinite(
+    item.current_risk_score,
+    item.latest_risk_score,
+    item.current_eis_score,
+    item.eis_score,
+    item.risk_score,
+    item.latest_score,
+    item.current_score,
+    hotspot?.latest_eis,
+    eisScore
+  );
+}
+
+function getForecastRiskScore(item: BackendForecastItem): number {
+  return (
+    firstFinite(
+      item.forecast_risk_score,
+      item.predicted_risk_score,
+      item.forecast_score,
+      item.predicted_score,
+      item.predicted_eis
+    ) ?? 0
+  );
+}
+
+function deriveAction(
+  item: BackendForecastItem,
+  tier: DisplayRiskTier,
+  violation: string | null
+): string {
+  const apiRecommendation = firstText(
+    item.recommended_action,
+    item.suggested_action,
+    item.enforcement_focus
+  );
+  if (apiRecommendation) return apiRecommendation;
+
+  const focus = violation?.toLowerCase() ?? "";
+  const primaryViolation = focus.split(",")[0]?.trim() ?? "";
+  if (
+    primaryViolation.includes("main road") ||
+    primaryViolation.includes("road crossing")
+  ) {
+    return tier === "Critical"
+      ? "Increase patrol coverage and clear high-impact roadway obstructions"
+      : tier === "High"
+        ? "Prioritize roadway-obstruction enforcement"
+        : "Monitor roadway obstruction risk with targeted field checks";
   }
-  if (item.predicted_risk_category === "Critical") {
-    return "Deploy surge patrol during next forecast horizon";
+  if (primaryViolation.includes("no parking")) {
+    return tier === "Critical"
+      ? "Deploy immediate no-parking enforcement and clearance checks"
+      : tier === "High"
+        ? "Prioritize monitoring and targeted no-parking enforcement"
+        : "Monitor no-parking activity during peak periods";
   }
-  if (item.predicted_risk_category === "High") {
-    return "Increase enforcement presence at peak windows";
+  if (primaryViolation.includes("footpath")) {
+    return tier === "Critical" || tier === "High"
+      ? "Prioritize footpath clearance and pedestrian-access enforcement"
+      : "Schedule focused footpath-parking checks";
   }
-  return "Maintain standard patrol cadence";
+  if (primaryViolation.includes("wrong parking")) {
+    return tier === "Critical"
+      ? "Increase patrol presence and immediate wrong-parking enforcement"
+      : tier === "High"
+        ? "Prioritize targeted wrong-parking enforcement"
+        : "Schedule focused wrong-parking checks during peak periods";
+  }
+  if (focus.includes("no parking")) {
+    return tier === "Critical"
+      ? "Deploy immediate no-parking enforcement and clearance checks"
+      : tier === "High"
+        ? "Prioritize monitoring and targeted no-parking enforcement"
+        : "Monitor no-parking activity during peak periods";
+  }
+  if (focus.includes("footpath")) {
+    return tier === "Critical" || tier === "High"
+      ? "Prioritize footpath clearance and pedestrian-access enforcement"
+      : "Schedule focused footpath-parking checks";
+  }
+  if (focus.includes("main road") || focus.includes("road crossing")) {
+    return tier === "Critical"
+      ? "Increase patrol coverage and clear high-impact roadway obstructions"
+      : "Monitor roadway obstruction risk with targeted field checks";
+  }
+  return tier === "Critical"
+    ? "Increase patrol presence for immediate high-risk enforcement"
+    : tier === "High"
+      ? "Prioritize targeted enforcement during the forecast horizon"
+      : tier === "Medium"
+        ? "Monitor and schedule focused checks during peak periods"
+        : "Maintain observation and routine enforcement coverage";
 }
 
 export function adaptForecastTop(
   forecasts: BackendForecastItem[],
   eisByHotspot: Map<number, number>,
-  hotspotNames: Map<number, string>,
-  tierByHotspot: Map<number, DisplayRiskTier>
+  riskUniverse: HotspotDisplayUniverseItem[]
 ): ForecastPredictionRow[] {
-  return forecasts.map((item) => {
-    const name = hotspotNames.get(item.hotspot_id);
-    return {
-      hotspot_id: item.hotspot_id,
-      name: name ?? `Hotspot #${item.hotspot_id}`,
-      displayName: getHotspotDisplayName({
+  const hotspotById = new Map(
+    riskUniverse.map((hotspot) => [hotspot.hotspot_id, hotspot])
+  );
+  const prepared = forecasts
+    .map((item) => {
+      const hotspot = hotspotById.get(item.hotspot_id);
+      return {
+        item,
+        hotspot,
         hotspot_id: item.hotspot_id,
-        hotspot_name: name,
-      }),
-      displaySubtext: null,
-      displayRiskTier: tierByHotspot.get(item.hotspot_id) ?? "Low",
-      current_eis: eisByHotspot.get(item.hotspot_id) ?? null,
-      forecasted_eis: item.predicted_eis,
-      risk_category: item.predicted_risk_category,
-      action_recommended: deriveAction(item),
-    };
-  });
+        current_risk_score: getCurrentRiskScore(
+          item,
+          hotspot,
+          eisByHotspot.get(item.hotspot_id)
+        ),
+        forecasted_eis: getForecastRiskScore(item),
+        violation_count: hotspot?.violation_count ?? 0,
+      };
+    });
+  const ranked = applyPercentileRiskTiers(prepared);
+
+  return ranked.map(
+    ({
+      item,
+      hotspot,
+      current_risk_score,
+      forecasted_eis,
+      violation_count,
+      displayRiskTier,
+      displayRiskRank,
+    }) => {
+      const violation = firstText(
+        item.dominant_violation,
+        item.violation_type,
+        hotspot?.hotspot_type
+      );
+      const displaySource = {
+        ...hotspot,
+        hotspot_id: item.hotspot_id,
+      };
+
+      return {
+        hotspot_id: item.hotspot_id,
+        name: hotspot?.name ?? `Hotspot #${item.hotspot_id}`,
+        displayName: getHotspotDisplayName(displaySource),
+        displaySubtext: getHotspotSubtext(displaySource),
+        displayRiskTier,
+        displayRiskRank,
+        current_eis: current_risk_score,
+        forecasted_eis,
+        risk_category: item.predicted_risk_category,
+        totalViolations: violation_count,
+        dominantViolation: violation,
+        action_recommended: deriveAction(item, displayRiskTier, violation),
+      };
+    }
+  );
 }
 
 export function buildEisLookup(
   scores: EISScoreView[]
-): {
-  eisByHotspot: Map<number, number>;
-  hotspotNames: Map<number, string>;
-  tierByHotspot: Map<number, DisplayRiskTier>;
-} {
-  const eisByHotspot = new Map<number, number>();
-  const hotspotNames = new Map<number, string>();
-  const tierByHotspot = new Map<number, DisplayRiskTier>();
-  for (const score of scores) {
-    eisByHotspot.set(score.hotspot_id, score.eis_score);
-    hotspotNames.set(score.hotspot_id, score.displayName);
-    tierByHotspot.set(score.hotspot_id, score.displayRiskTier);
-  }
-  return { eisByHotspot, hotspotNames, tierByHotspot };
+): Map<number, number> {
+  return new Map(scores.map((score) => [score.hotspot_id, score.eis_score]));
 }

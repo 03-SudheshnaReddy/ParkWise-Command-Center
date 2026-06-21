@@ -12,14 +12,17 @@ import { MapMyIndiaWrapper } from "@/components/maps/MapMyIndiaWrapper";
 import { Card } from "@/components/ui/card";
 import { adaptHotspotRecords } from "@/adapters/hotspots";
 import {
+  useAllHotspots,
   useHotspotDisplayUniverse,
-  useHotspots,
 } from "@/hooks/useHotspots";
 import { PageHeader } from "@/layout/PageHeader";
-
-type HotspotRisk = "Critical" | "High" | "Medium" | "Low";
+import {
+  getRiskColorClass,
+  getRiskHexColor,
+} from "@/utils/riskDisplay";
 
 const numberFormatter = new Intl.NumberFormat("en-IN");
+const TABLE_PAGE_SIZE = 25;
 
 function latLngToXY(lat: number, lng: number) {
   const minLat = 12.80;
@@ -33,41 +36,13 @@ function latLngToXY(lat: number, lng: number) {
   return { x, y };
 }
 
-function getRiskColor(risk: HotspotRisk) {
-  if (risk === "Critical") return "#EF4444";
-  if (risk === "High") return "#F59E0B";
-  if (risk === "Medium") return "#3B82F6";
-  if (risk === "Low") return "#10B981";
-  return "#10B981";
-}
-
-function getRiskClasses(risk: HotspotRisk) {
-  if (risk === "Critical") {
-    return "border-rose-400/20 bg-rose-400/10 text-rose-200";
-  }
-  if (risk === "High") {
-    return "border-amber-400/20 bg-amber-400/10 text-amber-200";
-  }
-  if (risk === "Medium") {
-    return "border-blue-400/20 bg-blue-400/10 text-blue-200";
-  }
-  if (risk === "Low") {
-    return "border-emerald-400/20 bg-emerald-400/10 text-emerald-200";
-  }
-  return "border-emerald-400/20 bg-emerald-400/10 text-emerald-200";
-}
-
 export default function HotspotsPage() {
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
-  const [minViolations, setMinViolations] = useState(0);
+  const [topHotspots, setTopHotspots] = useState(100);
   const [selectedHotspotName, setSelectedHotspotName] = useState("");
 
-  const { data, isLoading, error } = useHotspots({
-    page,
-    page_size: 10,
-    min_violations: minViolations,
-  });
+  const { data, isLoading, error } = useAllHotspots();
   const {
     data: riskUniverse = [],
     isLoading: isRiskLoading,
@@ -100,16 +75,33 @@ export default function HotspotsPage() {
     );
   }
 
-  const { items = [], total = 0, page_size = 10 } = data;
+  const { items = [], total = 0 } = data;
   const displayItems = adaptHotspotRecords(items, riskUniverse);
   const normalizedSearch = searchQuery.trim().toLowerCase();
-  const filteredItems = displayItems.filter((item) =>
-    `${item.displayName} ${item.hotspot_name ?? ""}`
+  const matchingItems = displayItems.filter((item) =>
+    [
+      item.displayName,
+      item.hotspot_name,
+      item.dominant_violation_type,
+      item.dominant_vehicle_category,
+      item.zone_id,
+    ]
+      .filter(Boolean)
+      .join(" ")
       .toLowerCase()
       .includes(normalizedSearch)
   );
+  const selectedItems = matchingItems.slice(0, topHotspots);
+  const totalPages = Math.max(
+    1,
+    Math.ceil(selectedItems.length / TABLE_PAGE_SIZE)
+  );
+  const tableItems = selectedItems.slice(
+    (page - 1) * TABLE_PAGE_SIZE,
+    page * TABLE_PAGE_SIZE
+  );
 
-  const markers = filteredItems.map((item) => {
+  const markers = selectedItems.map((item) => {
     const { x, y } = latLngToXY(item.centroid_lat, item.centroid_lon);
     return {
       id: String(item.id),
@@ -119,15 +111,15 @@ export default function HotspotsPage() {
       y,
       label: item.displayName,
       risk: item.displayRiskTier,
-      color: getRiskColor(item.displayRiskTier),
+      color: getRiskHexColor(item.displayRiskTier),
       selected: String(item.id) === selectedHotspotName,
     };
   });
 
   const selectedHotspot =
-    filteredItems.find(
+    selectedItems.find(
       (hotspot) => String(hotspot.id) === selectedHotspotName
-    ) ?? filteredItems[0];
+    ) ?? selectedItems[0];
   const popups =
     selectedHotspot &&
     String(selectedHotspot.id) === selectedHotspotName
@@ -149,7 +141,9 @@ export default function HotspotsPage() {
         ]
       : [];
 
-  const totalPages = Math.max(1, Math.ceil(total / page_size));
+  const mapSubtitle = normalizedSearch
+    ? `Showing ${selectedItems.length} hotspots matching filters`
+    : `Showing top ${selectedItems.length} ranked hotspots on map and table`;
 
   return (
     <div className="space-y-4 pb-6">
@@ -167,17 +161,17 @@ export default function HotspotsPage() {
               <Crosshair className="h-4 w-4" />
             </span>
             <p className="mt-4 text-[9px] font-semibold uppercase tracking-[0.24em] text-cyan-300/70">
-              Table Filters
+              Table + Map Filters
             </p>
             <h2 className="mt-1 text-base font-semibold text-white">
               Filter Hotspot Records
             </h2>
             <p className="mt-1.5 text-xs leading-5 text-slate-500">
-              These controls filter the visible map records and the hotspot
-              records table below.
+              These controls filter both the hotspot map and the records table
+              below.
             </p>
             <span className="mt-3 inline-flex rounded-full border border-cyan-300/12 bg-cyan-300/[0.055] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-cyan-200/75">
-              Applies to visible records
+              Map and table synchronized
             </span>
           </div>
 
@@ -192,7 +186,10 @@ export default function HotspotsPage() {
                   type="text"
                   placeholder="Search hotspot…"
                   value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
+                  onChange={(event) => {
+                    setSearchQuery(event.target.value);
+                    setPage(1);
+                  }}
                   className="w-full rounded-xl border border-white/[0.08] bg-black/25 py-2.5 pl-9 pr-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300/35 focus:ring-2 focus:ring-cyan-300/[0.06]"
                 />
               </span>
@@ -200,19 +197,23 @@ export default function HotspotsPage() {
 
             <label className="block">
               <span className="flex items-center justify-between gap-3 text-[11px] font-semibold text-slate-300">
-                Minimum violations
+                Top hotspots to display
                 <span className="rounded-lg border border-cyan-300/15 bg-cyan-300/[0.06] px-2 py-1 font-mono text-cyan-200">
-                  {numberFormatter.format(minViolations)}
+                  {numberFormatter.format(topHotspots)}
                 </span>
+              </span>
+              <span className="mt-1.5 block text-[10px] leading-4 text-slate-600">
+                Controls how many ranked hotspot records are shown on the map
+                and table.
               </span>
               <input
                 type="range"
-                min="0"
-                max="800"
-                step="50"
-                value={minViolations}
+                min="10"
+                max={Math.min(500, Math.max(10, total))}
+                step="10"
+                value={topHotspots}
                 onChange={(event) => {
-                  setMinViolations(Number(event.target.value));
+                  setTopHotspots(Number(event.target.value));
                   setPage(1);
                 }}
                 className="mt-3 h-1.5 w-full cursor-pointer accent-cyan-300"
@@ -222,10 +223,10 @@ export default function HotspotsPage() {
             <div className="grid grid-cols-2 gap-2 border-t border-white/[0.07] pt-4">
               <div className="rounded-xl border border-white/[0.06] bg-black/20 p-3">
                 <p className="text-[9px] uppercase tracking-[0.14em] text-slate-600">
-                  Visible
+                  Selected
                 </p>
                 <p className="mt-1 font-mono text-lg font-bold text-white">
-                  {filteredItems.length}
+                  {selectedItems.length}
                 </p>
               </div>
               <div className="rounded-xl border border-white/[0.06] bg-black/20 p-3">
@@ -243,7 +244,7 @@ export default function HotspotsPage() {
         <div className="hotspot-map-shell rounded-[28px] border border-cyan-300/10 bg-slate-950/50 p-1.5 shadow-[0_35px_90px_-55px_rgba(34,211,238,0.65)]">
           <MapMyIndiaWrapper
             title="Spatial Hotspot Distribution"
-            subtitle={`Map preview: ${filteredItems.length} visible · ${numberFormatter.format(total)} records match server filters`}
+            subtitle={mapSubtitle}
             markers={markers}
             popups={popups}
             legendItems={[
@@ -273,7 +274,7 @@ export default function HotspotsPage() {
           </div>
           <span className="flex w-fit items-center gap-2 rounded-full border border-white/[0.07] bg-black/20 px-3 py-1.5 text-[10px] text-slate-400">
             <Layers3 className="h-3.5 w-3.5 text-cyan-300" />
-            {filteredItems.length} visible
+            {selectedItems.length} selected
           </span>
         </div>
 
@@ -291,14 +292,14 @@ export default function HotspotsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/[0.055] text-sm text-slate-300">
-              {filteredItems.length === 0 ? (
+              {tableItems.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-10 text-center text-slate-500">
                     No hotspots match the current filters.
                   </td>
                 </tr>
               ) : (
-                filteredItems.map((item) => {
+                tableItems.map((item) => {
                   const risk = item.displayRiskTier;
                   const isSelected = String(item.id) === selectedHotspotName;
 
@@ -340,7 +341,7 @@ export default function HotspotsPage() {
                       </td>
                       <td className="px-4 py-3.5 text-center">
                         <span
-                          className={`rounded-full border px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.1em] ${getRiskClasses(
+                          className={`rounded-full border px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.1em] ${getRiskColorClass(
                             risk
                           )}`}
                         >
@@ -380,9 +381,14 @@ export default function HotspotsPage() {
             <span className="font-semibold text-slate-300">{totalPages}</span>
             <span className="mx-2 text-slate-700">•</span>
             <span className="font-semibold text-slate-300">
-              {numberFormatter.format(total)}
+              {numberFormatter.format(selectedItems.length)}
             </span>{" "}
-            total hotspots
+            selected hotspots
+            <span className="mx-2 text-slate-700">·</span>
+            <span className="font-semibold text-slate-300">
+              {numberFormatter.format(matchingItems.length)}
+            </span>{" "}
+            matching records
           </p>
           <div className="flex items-center gap-2">
             <button

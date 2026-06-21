@@ -16,6 +16,10 @@ import { useDashboard } from "@/hooks/useDashboard";
 import {
   dashboardMetricDescriptions,
 } from "@/data/dashboardPresentationData";
+import {
+  getRiskColorClass,
+  getRiskHexColor,
+} from "@/utils/riskDisplay";
 
 function latLngToXY(lat: number, lng: number) {
   const minLat = 12.80;
@@ -93,23 +97,17 @@ export default function DashboardPage() {
   );
   const mapHotspots = priorityHotspots.slice(0, 20);
   const riskLegend = [
-    { label: "Critical", color: "#EF4444" },
-    { label: "High", color: "#F59E0B" },
-    { label: "Medium", color: "#3B82F6" },
-    { label: "Low", color: "#10B981" },
+    { label: "Critical", color: getRiskHexColor("Critical") },
+    { label: "High", color: getRiskHexColor("High") },
+    { label: "Medium", color: getRiskHexColor("Medium") },
+    { label: "Low", color: getRiskHexColor("Low") },
   ].filter((legend) =>
     mapHotspots.some((hotspot) => hotspot.displayRiskTier === legend.label)
   );
 
   const markers = mapHotspots.map((item) => {
     const { x, y } = latLngToXY(item.latitude, item.longitude);
-    const color = item.displayRiskTier === "Critical"
-      ? "#EF4444" 
-      : item.displayRiskTier === "High"
-        ? "#F59E0B" 
-        : item.displayRiskTier === "Medium"
-          ? "#3B82F6" 
-          : "#10B981";
+    const color = getRiskHexColor(item.displayRiskTier);
     return {
       id: String(item.hotspot_id),
       lat: item.latitude,
@@ -244,13 +242,9 @@ export default function DashboardPage() {
                     </p>
                   </div>
                   <span
-                    className={`shrink-0 rounded-full border px-2 py-1 text-[9px] font-bold uppercase tracking-wider ${
-                      hotspot.displayRiskTier === "Critical"
-                        ? "border-rose-400/20 bg-rose-400/[0.09] text-rose-200"
-                        : hotspot.displayRiskTier === "High"
-                          ? "border-amber-300/20 bg-amber-300/[0.08] text-amber-200"
-                          : "border-sky-300/20 bg-sky-300/[0.08] text-sky-200"
-                    }`}
+                    className={`shrink-0 rounded-full border px-2 py-1 text-[9px] font-bold uppercase tracking-wider ${getRiskColorClass(
+                      hotspot.displayRiskTier
+                    )}`}
                   >
                     {hotspot.displayRiskTier}
                   </span>

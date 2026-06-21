@@ -8,19 +8,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { useEisScores } from "@/hooks/useTemporal";
 import { PageHeader } from "@/layout/PageHeader";
-
-function riskClasses(risk: string) {
-  if (risk === "Critical") {
-    return "border-rose-400/20 bg-rose-400/10 text-rose-200";
-  }
-  if (risk === "High") {
-    return "border-amber-400/20 bg-amber-400/10 text-amber-200";
-  }
-  if (risk === "Low") {
-    return "border-emerald-400/20 bg-emerald-400/10 text-emerald-200";
-  }
-  return "border-blue-400/20 bg-blue-400/10 text-blue-200";
-}
+import { getRiskColorClass } from "@/utils/riskDisplay";
 
 function ScoreBar({
   label,
@@ -195,7 +183,7 @@ export default function TemporalPage() {
                         </td>
                         <td className="px-4 py-3.5 text-center">
                           <span
-                            className={`rounded-full border px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.1em] shadow-[0_8px_20px_-14px_currentColor] ${riskClasses(
+                            className={`rounded-full border px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.1em] shadow-[0_8px_20px_-14px_currentColor] ${getRiskColorClass(
                               item.displayRiskTier
                             )}`}
                           >
@@ -240,7 +228,7 @@ export default function TemporalPage() {
                   </p>
                 </div>
                 <span
-                  className={`rounded-full border px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.1em] shadow-[0_8px_20px_-14px_currentColor] ${riskClasses(
+                  className={`rounded-full border px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.1em] shadow-[0_8px_20px_-14px_currentColor] ${getRiskColorClass(
                     selectedScore.displayRiskTier
                   )}`}
                 >

@@ -5,6 +5,7 @@ import {
   getHotspotDisplayName,
   getHotspotSubtext,
 } from "@/utils/hotspotDisplay";
+import { getRiskTierFromScoreOrRank } from "@/utils/riskDisplay";
 
 export function adaptAllocationPlan(
   plan: BackendAllocationPlan,
@@ -13,6 +14,10 @@ export function adaptAllocationPlan(
   const tierByHotspot = new Map(
     riskUniverse.map((score) => [score.hotspot_id, score.displayRiskTier])
   );
+  const allocationRiskRecords = plan.allocations.map((item) => ({
+    hotspot_id: item.hotspot_id,
+    eis_score: item.eis_snapshot,
+  }));
   const allocations: AllocationRowView[] = plan.allocations.map((item) => ({
     hotspot_id: item.hotspot_id,
     hotspot_name: item.hotspot_name ?? `Hotspot #${item.hotspot_id}`,
@@ -20,7 +25,12 @@ export function adaptAllocationPlan(
     risk_category: item.risk_category ?? "Medium",
     displayName: getHotspotDisplayName(item),
     displaySubtext: getHotspotSubtext(item),
-    displayRiskTier: tierByHotspot.get(item.hotspot_id) ?? "Low",
+    displayRiskTier:
+      tierByHotspot.get(item.hotspot_id) ??
+      getRiskTierFromScoreOrRank(
+        { hotspot_id: item.hotspot_id, eis_score: item.eis_snapshot },
+        allocationRiskRecords
+      ),
     priority: item.priority_rank,
   }));
 
