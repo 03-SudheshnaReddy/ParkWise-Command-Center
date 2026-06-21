@@ -11,6 +11,7 @@ from typing import Any
 
 from geoalchemy2.elements import WKTElement
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from app.models.enriched_violation import EnrichedViolation
 from app.models.hotspot import Hotspot
@@ -89,6 +90,8 @@ class HotspotService:
         processed_at = datetime.utcnow()
 
         try:
+            self.db.execute(text("TRUNCATE hotspots CASCADE;"))
+            self.db.commit()
             self._delete_existing()
             groups, violations_read = self._aggregate_groups()
             hotspot_ids = self._create_hotspots(
