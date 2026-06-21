@@ -57,10 +57,6 @@ def list_violations(
         items=[ViolationRead.model_validate(v) for v in items],
     )
 
-from pydantic import BaseModel
-from typing import List, Any
-from geoalchemy2.elements import WKTElement
-
 class ViolationBatchInput(BaseModel):
     batch: List[dict]
 
@@ -69,7 +65,6 @@ def batch_upload(
     payload: ViolationBatchInput,
     db: Session = Depends(db_session)
 ):
-    from sqlalchemy.exc import SQLAlchemyError
     try:
         new_violations = []
         for row in payload.batch:
@@ -83,6 +78,8 @@ def batch_upload(
                 violation_type=row.get("violation_type", "Unknown"),
                 violation_date=datetime.fromisoformat(row["violation_date"]) if "violation_date" in row and row["violation_date"] else datetime.now(),
                 junction_name=row.get("junction_name", "Unknown"),
+                latitude=lat,
+                longitude=lon,
                 location=WKTElement(f"POINT({lon} {lat})", srid=4326),
             )
             new_violations.append(v)
@@ -93,3 +90,13 @@ def batch_upload(
     except Exception as e:
         db.rollback()
         return {"status": "error", "detail": str(e)}
+
+@router.post("/fix-coordinates", summary="Fix missing latitude/longitude from geometry")
+def fix_coordinates(db: Session = Depends(db_session)) -> Any:
+    try:
+        db.execute(text("UPDATE violations SET latitude = ST_Y(location::geometry), longitude = ST_X(location::geometry) WHERE latitude IS NULL;"))
+        db.commit()
+        return {"status": "fixed"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
